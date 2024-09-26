@@ -1,17 +1,16 @@
 #ifndef BLE_MACHINE_H
 #define BLE_MACHINE_H
 
+// INCLUDES ------------------------------------------------------------------------------------------------------------------------
 
-/*---------------------------------------- INCLUDES --------------------------------------------------------------------------------*/
-
-#include <zephyr/bluetooth/conn.h>      // Para las estructuras de callbacks de pairing y authenticacion
-#include <zephyr/bluetooth/bluetooth.h> // Este lo puse por BT_DATA dentro de la declaracion de sd que se usa para el advertising
-#include <bluetooth/services/hids.h>    // Para la funcion hid_init en principio
-#include <zephyr/settings/settings.h>   // Lo agrege por la funcion settings_load() del estado BLE_ADVERTISING
+#include <zephyr/bluetooth/conn.h>          // Para las estructuras de callbacks de pairing y authenticacion
+#include <zephyr/bluetooth/bluetooth.h>     // APIs de Generic Access Profile (GAP) , bt_enable() - advertising_start ...
+#include <bluetooth/services/hids.h>        // Para la funcion hid_init en principio
+#include <zephyr/settings/settings.h>       // Lo agrege por la funcion settings_load() del estado BLE_ADVERTISING
 
 #include "APP_conf.h"
 
-/*---------------------------------------- DEFINITIONS --------------------------------------------------------------------------------*/
+// DEFINITIONS ------------------------------------------------------------------------------------------------------------------------
 
 enum ble_machine
 {
@@ -30,7 +29,7 @@ enum ble_machine
 #define DEVICE_NAME     CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
-/*------------------------------------------------ CALLBAKS -----------------------------------------------------------------------*/
+// CALLBAKS ------------------------------------------------------------------------------------------------------------------------
 
 void auth_passkey_display(struct bt_conn *conn, unsigned int passkey);
 void auth_passkey_confirm(struct bt_conn *conn, unsigned int passkey);
@@ -44,16 +43,11 @@ void connected(struct bt_conn *conn, uint8_t err);
 void disconnected(struct bt_conn *conn, uint8_t reason);
 void security_changed(struct bt_conn *conn, bt_security_t level,enum bt_security_err err);
 
-/*--------------------------------------- PROTOCOL FUNTIONS -----------------------------------------------------------------------*/
+//  ------------------------------------------------------------------------------------------------------------------------
 
 void ble_machine();
 
-/**/
-
-
-
-
-/*-------------------------------------------- FUNTIONS ---------------------------------------------------------------------------*/
+//  ------------------------------------------------------------------------------------------------------------------------
 
 bool get_BLE_state_conection();
 
@@ -72,6 +66,6 @@ int hid_kbd_state_key_clear(uint8_t key);
 
 int key_report_send(void);
 
-/*----------------------------------------------------------------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------------------------------------------------
 
 #endif // BLE_MACHINE_H

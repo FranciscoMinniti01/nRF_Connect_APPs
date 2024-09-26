@@ -1,26 +1,32 @@
 // INCLUDES ------------------------------------------------------------------------------------------------------------------------ 
 
-#include <errno.h>
-#include <zephyr/sys/byteorder.h>
-//#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <soc.h>
-#include <assert.h>
-#include <zephyr/spinlock.h>
+//#include <errno.h>
+//#include <zephyr/sys/byteorder.h>
+//#include <zephyr/drivers/gpio.h>
+//#include <soc.h>
+//#include <assert.h>
+//#include <zephyr/spinlock.h>
 
 #include "APP_conf.h"
 #include "ble_machine.h"
 #include "uart_machine.h"
 #include "gpios_leds.h"
 
-// VARIABLES ------------------------------------------------------------------------------------------------------------------------
+//LOG_DBG
+//LOG_INF
+//LOG_WRN
+//LOG_ERR
 
-#define K_INTERVAL  100//1							// Tiempo
+// VARIABLES AND DEFINES ------------------------------------------------------------------------------------------------------------------------
 
-#define KEY_CODE_BUFFER_LEN 6 						// Largo del buffer que toma de UART y envia por BLE (6 es el valor maximo y es el maximo numero de teclas simultaneas que se pueden presionar KEY_PRESS_MAX en ble_machine.c )
-uint8_t key_code_buffer[KEY_CODE_BUFFER_LEN];
+LOG_MODULE_REGISTER(LOG_MAIN,LOG_LEVEL);
 
-bool is_send = true;								// Bandera para verificar la confirmacion del envio de los datos
+#define K_INTERVAL  100//1
+
+#define KEY_CODE_BUFFER_LEN 6 								// Largo del buffer que toma de UART y envia por BLE 
+static uint8_t key_code_buffer[KEY_CODE_BUFFER_LEN];		// (6 es el valor maximo y es el maximo numero de teclas simultaneas que se pueden presionar KEY_PRESS_MAX en ble_machine.c )
+
+static bool is_send = true;									// Bandera para verificar la confirmacion del envio de los datos em el archivo
 
 enum app_machine
 {
@@ -41,8 +47,8 @@ enum UI_RGB_state_machine
 	NOT_STATE,
 };
 
-int8_t app_machine = APP_GET_UART;
-int8_t RGB_machine = INIT;
+static int8_t app_machine = APP_GET_UART;
+static int8_t RGB_machine = INIT;
 
 // KEYCODE ------------------------------------------------------------------------------------------------------------------------
 
@@ -135,12 +141,13 @@ void UI_RGB_machine(void)
 int main(void)
 {
 
-	LOG_INF("\r\n\n\n\n MAIN: Starting Bluetooth Peripheral HIDS keyboard example\n");
+	LOG_INF("\r\n\n\n\nMAIN: Starting Bluetooth Peripheral HIDS keyboard example\n");
 
 	static uint8_t data_len;
 	uint8_t caracter;
 
-	if(!RGB_UI_init()){
+	if(!RGB_UI_init())
+	{
 		LOG_ERR("Error: can not init RGB UI");
 		return 0;
 	}
@@ -192,7 +199,6 @@ int main(void)
 				if(is_send) app_machine = APP_GET_UART;
 				else if(!get_BLE_state_conection()) is_send = true;
 				break;
-		
 		}
 		
 		k_sleep(K_MSEC(K_INTERVAL));

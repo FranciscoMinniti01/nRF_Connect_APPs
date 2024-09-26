@@ -2,20 +2,18 @@
 
 #include "ble_machine.h"
 
-//LOG_DBG
-//LOG_INF
-//LOG_WRN
-//LOG_ERR
+//LOG_LEVEL_SET(LOG_LEVEL);
+LOG_MODULE_REGISTER(LOG_BLE,LOG_LEVEL);			// Registro del modulo logger y configuracion del nivel
 
 // VARIABLES ------------------------------------------------------------------------------------------------------------------------
 
 static uint8_t ble_machine_state = BLE_CB_REGISTERS;	//Estado de la maquina de estado BLE
 
-int8_t global_conter = 0;
-bool reconeccted_flag = true;
-bool state_conection = false;
-bool app_notifi_error_b = false;	
-static volatile bool is_adv = false; 							//INDICA SI ESTA EN ADVERTISING
+static int8_t global_conter = 0;
+static bool reconeccted_flag = true;
+static bool state_conection = false;
+static bool app_notifi_error_b = false;	
+static bool is_adv = false; 							//INDICA SI ESTA EN ADVERTISING
 
 string_complete_cb_t string_complete_cb;
 int8_t* sending_string_pointer;
@@ -38,19 +36,20 @@ K_MSGQ_DEFINE(mitm_queue,
 	      CONFIG_BT_HIDS_MAX_CLIENT_COUNT,
 	      4);
 
-static const struct bt_data ad[] = {											// Estructura del Advertising packet
-	BT_DATA_BYTES( 	BT_DATA_GAP_APPEARANCE,										// Da informacion de como deberia verse fisicamente el dispositivo (PARA BORRAR)
+static const struct bt_data ad[] = 												// Estructura del Advertising packet
+{											
+	BT_DATA_BYTES( 	BT_DATA_GAP_APPEARANCE,										// Da informacion de como deberia verse fisicamente el dispositivo (PARA BORRAR FRAN)
 		      		(CONFIG_BT_DEVICE_APPEARANCE >> 0) & 0xff,
 		      		(CONFIG_BT_DEVICE_APPEARANCE >> 8) & 0xff	),
-	BT_DATA_BYTES(	BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)	), 	// Banderas que indican que el dispositivo no es compatible con Bluetooth clásico (BR/EDR) y que el periodo de publicidad es prolongado.
+	BT_DATA_BYTES(	BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR) ), 	// Banderas: Dispositivo no compatible con Bluetooth clásico (BR/EDR) - El periodo de publicidad es prolongado.
 	BT_DATA_BYTES(	BT_DATA_UUID16_ALL, 										// Indica todos los UUIDs de 16 bits que el dispositivo está publicitando
 					BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),							// Representa el UUID del servicio Human Interface Device Service (HIDS)
-					BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)	),							// Representa el UUID del servicio Battery Service (BAS)
+					BT_UUID_16_ENCODE(BT_UUID_BAS_VAL) ),							// Representa el UUID del servicio Battery Service (BAS)
 };
 
-// Informacion y estructura del  scan response
-static const struct bt_data sd[] = {											// Estructura de la respuesta de escaneo
-	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),				// Incluye el nombre del dispositivo que el usuario humano ve cuando busca dispositivos cercanos
+static const struct bt_data sd[] = 												// Estructura de la respuesta de escaneo
+{											
+	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),				// Incluye el nombre del dispositivo visible por el usuario
 };
 
 /*---------------------------------------- ESTUCTURAS DE CALLBACKS --------------------------------------------------------------------------------*/
@@ -124,7 +123,7 @@ static void hids_outp_rep_handler(struct bt_hids_rep *rep,
 				  struct bt_conn *conn,
 				  bool write)
 {
-	printk("%d - hids_outp_rep_handler\n",global_conter++); // FRANCISCO
+	LOG_DBG("%d - hids_outp_rep_handler\n",global_conter++);
 
 	char addr[BT_ADDR_LE_STR_LEN];
 
@@ -134,7 +133,7 @@ static void hids_outp_rep_handler(struct bt_hids_rep *rep,
 	};
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-	printk("Output report has been received %s\n", addr);
+	LOG_INF("Output report has been received %s\n", addr);
 }
 
 
@@ -287,31 +286,27 @@ static void hid_init(void)
 
 static void advertising_start(void)
 {
+	LOG_DBG("advertising_start\n");
 	int err;
+	struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM( BT_LE_ADV_OPT_CONNECTABLE |		// Advertising Options: Publicidad como conectable	
+														 BT_LE_ADV_OPT_ONE_TIME,			// Advertising Options: Anuncie una vez. No intentes reanudar la publicidad conectable después de una conexión. 
+														 BT_GAP_ADV_FAST_INT_MIN_2,			// Minimum advertising interval: 
+														 BT_GAP_ADV_FAST_INT_MAX_2,			// Maximum advertising interval:
+														 NULL);								// Publicidad dirigida a esta direccion.
 
-	printk("%d - advertising_start\n",global_conter++); // FRANCISCO
-
-	struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-						BT_LE_ADV_OPT_CONNECTABLE |
-						BT_LE_ADV_OPT_ONE_TIME,
-						BT_GAP_ADV_FAST_INT_MIN_2,
-						BT_GAP_ADV_FAST_INT_MAX_2,
-						NULL);
-
-	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd,
-			      ARRAY_SIZE(sd));
-	if (err) {
+	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));				// Inicia la publicidad con su configuracion y los paquetes de publicidad y de respuesta a escaneo  
+	if (err)
+	{
 		if (err == -EALREADY) {
-			printk("Advertising continued\n");
+			LOG_INF("Advertising continued\n"); // Esto nose si es necesario, lo dejo para ver cuando pasa. FRAN
 		} else {
-			printk("Advertising failed to start (err %d)\n", err);
+			LOG_ERR("Advertising failed to start (err %d)\n", err);
 		}
-
 		return;
 	}
 
 	is_adv = true;
-	printk("Advertising successfully started\n");
+	LOG_INF("Advertising successfully started\n");
 }
 
 static void num_comp_reply(bool accept)
@@ -712,6 +707,7 @@ void security_changed(struct bt_conn *conn, bt_security_t level,enum bt_security
 
 void ble_machine()
 {
+	//LOG_ERR("ble_machine");
     uint8_t err;
     switch (ble_machine_state)
     {
