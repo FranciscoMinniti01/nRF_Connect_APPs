@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "nus.h": "c",
+        "ble_machine.h": "c",
+        "dmq_nus_service.h": "c",
+        "uart_machine.h": "c",
+        "app_config.h": "c"
+    }
+}
