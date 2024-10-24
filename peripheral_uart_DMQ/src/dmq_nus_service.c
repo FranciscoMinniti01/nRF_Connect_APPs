@@ -6,6 +6,9 @@ LOG_MODULE_REGISTER(LOG_NUS, LOG_LEVEL);
 
 static struct bt_nus_cb nus_cb;
 
+static bool indicate_enabled;
+static struct bt_gatt_indicate_params ind_params;
+
 static void nus_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	if (nus_cb.send_enabled) {
@@ -37,6 +40,16 @@ static void on_sent(struct bt_conn *conn, void *user_data)
 	}
 }
 
+static ssize_t sensor_param_read(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
+{
+	return len;
+}
+
+static ssize_t sensor_param_write(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
+{
+	return len;
+}
+
 BT_GATT_SERVICE_DEFINE( nus_svc,								// Declaracion del servicio NUS
 	BT_GATT_PRIMARY_SERVICE( BT_UUID_NUS_SERVICE),				// Declaracion de la caracteristica que marca el inicio del servicio primario 
 	
@@ -57,6 +70,15 @@ BT_GATT_SERVICE_DEFINE( nus_svc,								// Declaracion del servicio NUS
 			       			BT_GATT_PERM_WRITE_AUTHEN,				// Permite la escritura con autenticacion
 							NULL, on_receive, 						// Configuramos la calback de lectura en NULL y la de escritura
 							NULL),									// Datos de usuario del atributo característico.
+
+	BT_GATT_CHARACTERISTIC( BT_UUID_SENSOR_PARAM,				// Declaramos la caracteristica de valor para enviar la parametrizacion del censor
+			       		   	BT_GATT_CHRC_WRITE |
+							BT_GATT_CHRC_READ,				
+			       		   	BT_GATT_PERM_READ_AUTHEN |
+							BT_GATT_PERM_WRITE_AUTHEN,
+							sensor_param_read, sensor_param_write,
+			       		   	NULL),
+
 );
 
 int bt_nus_init(struct bt_nus_cb *callbacks)

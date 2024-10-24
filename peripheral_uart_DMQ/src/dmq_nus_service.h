@@ -12,18 +12,25 @@
 
 //  ------------------------------------------------------------------------------------------------------------------------
 
-#define BT_UUID_NUS_VAL BT_UUID_128_ENCODE(0x6e400001, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)		// UUID del servicio NUS
-#define BT_UUID_NUS_TX_VAL BT_UUID_128_ENCODE(0x6e400003, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID de la caracteristica TX
-#define BT_UUID_NUS_RX_VAL BT_UUID_128_ENCODE(0x6e400002, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID de la caracteristica RX
+#define BT_UUID_NUS_VAL 		  BT_UUID_128_ENCODE(0x6e400001, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID del servicio NUS
+#define BT_UUID_NUS_RX_VAL 		  BT_UUID_128_ENCODE(0x6e400002, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID de la caracteristica RX
+#define BT_UUID_NUS_TX_VAL 		  BT_UUID_128_ENCODE(0x6e400003, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID de la caracteristica TX
+#define BT_UUID_SENSOR_PARAM_VAL  BT_UUID_128_ENCODE(0x6e400004, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)	// UUID de la caracteristica de parametrizacion del sensor
 
 #define BT_UUID_NUS_SERVICE   BT_UUID_DECLARE_128(BT_UUID_NUS_VAL)
 #define BT_UUID_NUS_RX        BT_UUID_DECLARE_128(BT_UUID_NUS_RX_VAL)
 #define BT_UUID_NUS_TX        BT_UUID_DECLARE_128(BT_UUID_NUS_TX_VAL)
+#define BT_UUID_SENSOR_PARAM  BT_UUID_DECLARE_128(BT_UUID_SENSOR_PARAM_VAL)
 
 enum bt_nus_send_status {					// NUS send status.
 	BT_NUS_SEND_STATUS_ENABLED,				// Send notification enabled.
 	BT_NUS_SEND_STATUS_DISABLED,			// Send notification disabled.
 };
+
+typedef struct
+{
+	/* data */
+}dmq_sensor_param_t;
 
 struct bt_nus_cb
 {
