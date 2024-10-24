@@ -1,24 +1,17 @@
 #ifndef UART_MACHINE_H
 #define UART_MACHINE_H
 
-
-/*---------------------------------------- INCLUDES --------------------------------------------------------------------------------*/
-
-#include <zephyr/types.h>
-#include <stddef.h>
-#include <string.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/kernel.h>
+// INCLUDES ------------------------------------------------------------------------------------------------------------------------
 
 #include <zephyr/drivers/uart.h>
 
-/*---------------------------------------- DEFINITIONS --------------------------------------------------------------------------------*/
+#include "app_config.h"
 
-#define RECEIVE_BUFF_SIZE 	 8
-#define RECEIVE_BUFF_NUMBER  32
-#define RECEIVE_TIMEOUT_HAR  10000000//10000
+// DEFINITIONS ------------------------------------------------------------------------------------------------------------------------
 
 #define K_INTERVAL_TO_REINIT 50
+
+typedef void (*Code_callback_t) (uint16_t index , uint16_t* buf , uint8_t len);
 
 enum uart_machine
 {
@@ -30,13 +23,15 @@ enum uart_machine
     WAIT_FOT_REINIT
 };
 
+// FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
+
 uint8_t get_rdy_data();
-
 void uart_machine();
-
 bool get_UART_notifi_error(void);
 bool get_UART_notifi_ready(void);
+// Analiza el buffer en busqueda del codigo, Si lo encuentra envia el largo del codigo y el indice a donde se encuentra.
+void serch_code(Code_callback_t cb);
 
-/*----------------------------------------------------------------------------------------------------------------------------------*/
+// ------------------------------------------------------------------------------------------------------------------------
 
-#endif // UART_MACHINE_H
+#endif//UART_MACHINE_H

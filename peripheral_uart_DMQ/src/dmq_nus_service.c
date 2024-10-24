@@ -2,7 +2,7 @@
 
 #include "dmq_nus_service.h"
 
-LOG_MODULE_REGISTER(LOG_NUS, LOG_LEVEL);
+LOG_MODULE_REGISTER(LOG_NUS, LOG_NUS_LEVEL);
 
 static struct bt_nus_cb nus_cb;
 

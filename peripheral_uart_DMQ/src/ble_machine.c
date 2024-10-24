@@ -2,7 +2,7 @@
 
 #include "ble_machine.h"
 
-LOG_MODULE_REGISTER(LOG_BLE,LOG_LEVEL);			                // Registro del modulo logger y configuracion del nivel
+LOG_MODULE_REGISTER(LOG_BLE,LOG_BLE_LEVEL);			                // Registro del modulo logger y configuracion del nivel
 
 // GLOBAL VARIABLES ------------------------------------------------------------------------------------------------------------------------
 

@@ -1,32 +1,33 @@
-/*---------------------------------------- INCLUDES --------------------------------------------------------------------------------*/
+// INCLUDES ------------------------------------------------------------------------------------------------------------------------
 
 #include "uart_machine.h"
 
-/*---------------------------------------- VARIABLES --------------------------------------------------------------------------------*/
+// VARIABLES ------------------------------------------------------------------------------------------------------------------------
 
-static uint8_t uart_machine_state    = UART_INIT;
-static uint8_t uart_machine_state_CB = NOT_USET;
+LOG_MODULE_REGISTER(LOG_UART, LOG_UART_LEVEL);
 
-static uint8_t current_buffer_index  = 0;
+static uint8_t uart_machine_state       = UART_INIT;
+static uint8_t uart_machine_state_CB    = NOT_USET;
 
-static uint16_t uart_data_index  = 0;
-static uint16_t app_data_index   = 0;
+static bool app_notifi_error            = false;
+static bool app_notifi_ready            = false;
 
-const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart1));
+static uint8_t current_buffer_index     = 0;
+static uint16_t uart_data_index         = 0;
+static uint16_t app_data_index          = 0;
+static uint16_t serch_data_index        = 0;
 
-const struct uart_config uart_cfg = {   .baudrate   = 9600,
-		                                .parity     = UART_CFG_PARITY_NONE,
-		                                .stop_bits  = UART_CFG_STOP_BITS_1,
-		                                .data_bits  = UART_CFG_DATA_BITS_8,
-		                                .flow_ctrl  = UART_CFG_FLOW_CTRL_NONE
-	                                };
+const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart1));                     // Devuelve un puntero a un objeto de dispositivo creado a partir de un nodo de DeviceTree
+
+const struct uart_config uart_config = {.baudrate   = UART_BAUDRATE,
+		                                .parity     = UART_PARITY,
+		                                .stop_bits  = UART_STOP_BITS ,
+		                                .data_bits  = UART_DATA_BITS ,
+		                                .flow_ctrl  = UART_FLOW_CTRL };
 
 uint8_t uart_rx_buffers[RECEIVE_BUFF_NUMBER][RECEIVE_BUFF_SIZE];
 
-bool app_notifi_error = false;
-bool app_notifi_ready = false;
-
-/*---------------------------------------- Functions --------------------------------------------------------------------------------*/
+// FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
 
 bool get_UART_notifi_error(void)
 {
@@ -38,21 +39,65 @@ bool get_UART_notifi_ready(void)
     return app_notifi_ready;
 }
 
-uint8_t get_rdy_data() //Esta funcion retorna de un caracter a la vex, para aumentar la velocidad quizas pueda dar como parametro el largo maximo de info que quiero y retornar el largo de la info que mando.
+uint8_t get_rdy_data()
 {
     uint8_t data;
     if(app_data_index != uart_data_index)
     {
-        //printk("UART get_rdy_data : uart index=%d - app index=%d\n",uart_data_index,app_data_index);
-        data = * ( *((uint8_t (*)[RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE])uart_rx_buffers) + app_data_index);
-        app_data_index++;
-        app_data_index%=(RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE);
-        return data;
+        if( ((app_data_index+LEN_CODE)%(RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE)) <= serch_data_index)
+        {
+            data = * ( *((uint8_t (*)[RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE])uart_rx_buffers) + app_data_index);
+            app_data_index ++;
+            app_data_index %= (RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE);
+            
+            //LOG_DBG("UART get_rdy_data : uart index = %d - app index = %d - caracter = %c\n", uart_data_index, app_data_index, data);
+            return data;
+        }
     }
     return 0;
 }
 
-/*---------------------------------------- CALLBACK --------------------------------------------------------------------------------*/
+void serch_code(Code_callback_t cb)
+{
+    uint8_t data;
+    static uint8_t last_data;
+    static uint8_t code[LEN_CODE]   = CODE;
+    static uint8_t counter          = 0;
+    static bool    flag_code        = false;
+    static uint8_t len_code         = 0;
+    static uint8_t code_index       = 0;
+    
+    while(serch_data_index != uart_data_index)
+    {
+        data = * ( *((uint8_t (*)[RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE])uart_rx_buffers) + serch_data_index);
+        serch_data_index ++;
+        serch_data_index %= (RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE);
+        if(flag_code == true)
+        {
+            if(len_code == 0) len_code = data;
+            else {
+                counter ++;
+                if(counter == len_code)
+                {
+                    cb(serch_data_index, ((uint8_t (*)[RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE])uart_rx_buffers) ,data);
+                    flag_code = false;
+                    counter   = 0;
+                    len_code  = 0;
+                }
+            }
+            return;
+        }
+        if(data == code[counter]) counter++;
+        else counter = 0;
+        if(counter == LEN_CODE-1) {
+            flag_code = true; 
+            counter   = 0;
+            len_code  = 0;
+        }
+    }
+}
+
+// CALLBACK ------------------------------------------------------------------------------------------------------------------------
 
 static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
 {
@@ -60,16 +105,16 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 	{
         case UART_RX_BUF_REQUEST:
         {
-            //printk("UART_RX_BUF_REQUEST\n");
+            LOG_DBG("UART_RX_BUF_REQUEST\n");
             uart_rx_buf_rsp(uart,
-                            uart_rx_buffers[(current_buffer_index+1)%RECEIVE_BUFF_NUMBER],//&uart_rx_buffers[(current_buffer_index+1)%RECEIVE_BUFF_NUMBER],
+                            uart_rx_buffers[(current_buffer_index+1)%RECEIVE_BUFF_NUMBER],
                             RECEIVE_BUFF_SIZE);
             break;
         }
 
 		case UART_RX_RDY:
 		{
-            printk("UART_RX_RDY\n");
+            LOG_DBG("UART_RX_RDY\n");
             uart_data_index = uart_data_index + evt->data.rx.len;
             uart_data_index %= (RECEIVE_BUFF_NUMBER*RECEIVE_BUFF_SIZE);
 			break;
@@ -77,7 +122,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 
         case UART_RX_BUF_RELEASED:
         {
-            //printk("UART_RX_BUF_RELEASED\n");
+            LOG_DBG("UART_RX_BUF_RELEASED\n");
             current_buffer_index ++;
             current_buffer_index %= RECEIVE_BUFF_NUMBER;
             break;
@@ -85,7 +130,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 
 		case UART_RX_DISABLED:
 		{
-            printk("UART_RX_DISABLED\n");
+            LOG_DBG("UART_RX_DISABLED\n");
             uart_machine_state_CB = WAIT_FOT_REINIT;
             app_notifi_error = true;
             break;
@@ -93,32 +138,32 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 
         case UART_RX_STOPPED:
         {
-            printk("UART_RX_STOP: ");
+            LOG_ERR("UART_RX_STOP: ");
             app_notifi_error = true;
             switch (evt->data.rx_stop.reason)
             {
                 case UART_ERROR_OVERRUN:
-                    printk("OVERRUN\n");
+                    LOG_ERR("OVERRUN\n");
                     break;
             
                 case UART_ERROR_PARITY:
-                    printk("PARITY\n");
+                    LOG_ERR("PARITY\n");
                     break;
 
                 case UART_ERROR_FRAMING:
-                    printk("FRAMING\n");
+                    LOG_ERR("FRAMING\n");
                     break;
 
                 case UART_BREAK:
-                    printk("BREAK\n");
+                    LOG_ERR("BREAK\n");
                     break;
 
                 case UART_ERROR_COLLISION:
-                    printk("COLLISION\n");
+                    LOG_ERR("COLLISION\n");
                     break;
 
                 case UART_ERROR_NOISE:
-                    printk("NOISE\n");
+                    LOG_ERR("NOISE\n");
                     break;
             }
             break;
@@ -126,13 +171,13 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 
 		default:
 		{
-			printk("Default - Event: %d\n" , evt->type);
+			LOG_DBG("Default - Event: %d\n" , evt->type);
 			break;
 		}
 	}
 }
 
-/*---------------------------------------- MACHINE --------------------------------------------------------------------------------*/
+// MACHINE ------------------------------------------------------------------------------------------------------------------------
 
 void uart_machine()
 {
@@ -147,37 +192,47 @@ void uart_machine()
         case UART_INIT:
         {
             if (!device_is_ready(uart)) {
-		        printk("UART device is not ready\n");
+		        LOG_ERR("UART device is not ready\n");
+                app_notifi_error = true;
+                uart_machine_state = UART_DEACTIVATE;
 		        break;
 	        }
 
-	        err = uart_configure(uart, &uart_cfg);
+	        err = uart_configure(uart, &uart_config);
 	        if (err == -ENOSYS) {
-		        printk("Cannot init UART\n");
+		        LOG_ERR("Init UART failed\n");
+                app_notifi_error = true;
+                uart_machine_state = UART_DEACTIVATE;
+		        break;
 	        }
 
 	        err = uart_callback_set(uart, uart_cb, NULL);
 	        if (err) {
-		        printk("Cannot init UART Callback\n");
+		        LOG_ERR("Set UART Callback failed\n");
+                app_notifi_error = true;
+                uart_machine_state = UART_DEACTIVATE;
+		        break;
 	        }
 
             uart_machine_state = UART_RX_INIT;
-            app_notifi_ready = false;
-            app_notifi_error = false;
             break;
         }
 
         case UART_RX_INIT:
         {
             current_buffer_index = 0;
-            uart_data_index  = 0;
-            app_data_index   = 0;
-            if (uart_rx_enable(uart ,uart_rx_buffers[current_buffer_index],RECEIVE_BUFF_SIZE,RECEIVE_TIMEOUT_HAR)){
-		        printk("UART RX can not be enabled\n");
+            uart_data_index      = 0;
+            app_data_index       = 0;
+            serch_data_index     = 0;
+
+            if (uart_rx_enable(uart ,uart_rx_buffers[current_buffer_index] ,RECEIVE_BUFF_SIZE ,RECEIVE_TIMEOUT_HAR_US)) {
+		        LOG_ERR("UART RX enabled failed\n");
+                app_notifi_error = true;
+                uart_machine_state = UART_DEACTIVATE;
                 break;
 	        }
 
-            printk("UART STATE WORKING\n");
+            LOG_INF("UART STATE WORKING\n");
             uart_machine_state = UART_WORKING;
             app_notifi_ready = true;
             break;
@@ -185,33 +240,35 @@ void uart_machine()
     
         case UART_WORKING:
         {
-
+            
             break;
         }
 
-        case UART_DEACTIVATE:
+        case UART_DEACTIVATE:     //FRAN
         {
-            printk("UART_DEACTIVATE\n");
+            LOG_INF("UART_DEACTIVATE\n");
             uart_rx_disable(uart);
             uart_machine_state = UART_INIT;
-            app_notifi_ready = false;
+            app_notifi_ready   = false;
             break;
         }
 
-        case WAIT_FOT_REINIT:
+        case WAIT_FOT_REINIT:     //FRAN
         {
-            printk("UART WAIT_FOT_REINIT\n");
+            LOG_INF("UART WAIT_FOT_REINIT\n");
             k_sleep(K_MSEC(K_INTERVAL_TO_REINIT));
             uart_machine_state = UART_INIT;
-            app_notifi_ready = false;
+            app_notifi_ready   = false;
             break;
         }
 
         default:
         {
-            printk("UART default\n");
+            LOG_ERR("UART machine state default\n");
             uart_machine_state = UART_DEACTIVATE;
             break;
         }
     }
-}   
+}
+
+// ------------------------------------------------------------------------------------------------------------------------

@@ -10,7 +10,14 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-#define LOG_LEVEL 3
+
+// APP CONFIG ------------------------------------------------------------------------------------------------------------------------
+
+// LOG_ERR 1 - LOG_WRN 2 - LOG_INF 3 - LOG_DBG 4
+#define LOG_MAIN_LEVEL      3
+#define LOG_BLE_LEVEL       3
+#define LOG_UART_LEVEL      3
+#define LOG_NUS_LEVEL       3
 
 // BLE CONFIG ------------------------------------------------------------------------------------------------------------------------
 
@@ -33,5 +40,26 @@
 #define PASSKEY             DEVICE_CODE
 
 // NUS CONFIG ------------------------------------------------------------------------------------------------------------------------
+
+
+
+// UART CONFIG ------------------------------------------------------------------------------------------------------------------------
+
+#include <zephyr/drivers/uart.h>
+
+#define UART_BAUDRATE           9600
+#define UART_PARITY             UART_CFG_PARITY_NONE
+#define UART_STOP_BITS          UART_CFG_STOP_BITS_1
+#define UART_DATA_BITS          UART_CFG_DATA_BITS_8
+#define UART_FLOW_CTRL          UART_CFG_FLOW_CTRL_NONE
+
+#define RECEIVE_BUFF_SIZE 	    8
+#define RECEIVE_BUFF_NUMBER     32
+#define RECEIVE_TIMEOUT_HAR_US  10000000
+
+#define CODE                    "DMQ"
+#define LEN_CODE                3
+
+// ------------------------------------------------------------------------------------------------------------------------
 
 #endif//APP_CONFIG_H

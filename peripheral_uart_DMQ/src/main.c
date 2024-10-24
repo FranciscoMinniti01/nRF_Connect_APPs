@@ -8,7 +8,7 @@
 
 #include "dmq_nus_service.h"                    // Incluye las funciones y definiciones particulares del servicio NUS utilizando el codigo modificado
 #include "app_config.h"
-LOG_MODULE_REGISTER(LOG_MAIN,LOG_LEVEL);			                // Registro del modulo logger y configuracion del nivel
+LOG_MODULE_REGISTER(LOG_MAIN,LOG_MAIN_LEVEL);			                // Registro del modulo logger y configuracion del nivel
 #include "uart_machine.h"
 #include "ble_machine.h"
 
