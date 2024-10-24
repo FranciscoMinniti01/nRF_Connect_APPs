@@ -3,7 +3,7 @@
 
 // INCLUDES ------------------------------------------------------------------------------------------------------------------------
 
-#include <zephyr/bluetooth/conn.h>          // Para las estructuras de callbacks de pairing y authenticacion
+#include <zephyr/bluetooth/conn.h>          // Permite gestionar los eventos de coneccion. Tambien el pairing y authenticacion
 #include <zephyr/bluetooth/bluetooth.h>     // APIs de Generic Access Profile (GAP) , bt_enable() - advertising_start ...
 #include <bluetooth/services/hids.h>        // Para la funcion hid_init en principio
 #include <zephyr/settings/settings.h>       // Lo agrege por la funcion settings_load() del estado BLE_ADVERTISING

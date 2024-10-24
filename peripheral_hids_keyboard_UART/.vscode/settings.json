@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "gpios_leds.h": "c"
+        "gpios_leds.h": "c",
+        "app_conf.h": "c"
     }
 }

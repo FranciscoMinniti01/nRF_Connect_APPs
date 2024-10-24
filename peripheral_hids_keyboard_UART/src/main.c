@@ -160,7 +160,7 @@ int main(void)
 
 		ble_machine();
 
-		uart_machine();
+		//uart_machine();
 
 		switch (app_machine)
 		{

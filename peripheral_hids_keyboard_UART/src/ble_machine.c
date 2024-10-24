@@ -9,11 +9,11 @@ LOG_MODULE_REGISTER(LOG_BLE,LOG_LEVEL);			// Registro del modulo logger y config
 
 static uint8_t ble_machine_state = BLE_CB_REGISTERS;	//Estado de la maquina de estado BLE
 
-static int8_t global_conter = 0;
-static bool reconeccted_flag = true;
-static bool state_conection = false;
-static bool app_notifi_error_b = false;	
-static bool is_adv = false; 							//INDICA SI ESTA EN ADVERTISING
+static int8_t global_conter 	= 0;
+static bool reconeccted_flag 	= true;
+static bool state_conection 	= false;
+static bool app_notifi_error_b 	= false;	// Bandeta que indica la precencia de un error
+static bool is_adv 				= false; 	// Bandeta que indica el estado del advertising
 
 string_complete_cb_t string_complete_cb;
 int8_t* sending_string_pointer;
@@ -50,25 +50,6 @@ static const struct bt_data ad[] = 												// Estructura del Advertising pac
 static const struct bt_data sd[] = 												// Estructura de la respuesta de escaneo
 {											
 	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),				// Incluye el nombre del dispositivo visible por el usuario
-};
-
-/*---------------------------------------- ESTUCTURAS DE CALLBACKS --------------------------------------------------------------------------------*/
-
-static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.passkey_display = auth_passkey_display,
-	.passkey_confirm = auth_passkey_confirm,
-	.cancel = auth_cancel,
-};
-
-static struct bt_conn_auth_info_cb conn_auth_info_callbacks = {
-	.pairing_complete = pairing_complete,
-	.pairing_failed = pairing_failed
-};
-
-BT_CONN_CB_DEFINE(conn_callbacks) = {
-	.connected = connected,
-	.disconnected = disconnected,
-	.security_changed = security_changed,
 };
 
 /*---------------------------------------- HID VARIABLES AND DEFINES --------------------------------------------------------------------------------*/
@@ -117,6 +98,25 @@ static struct keyboard_state {
 	uint8_t keys_state[KEY_PRESS_MAX];
 } hid_keyboard_state;
 
+// CALLBACKS STRUCT ------------------------------------------------------------------------------------------------------------------------
+
+static struct bt_conn_auth_cb conn_auth_callbacks = {
+	.passkey_display = auth_passkey_display,
+	.passkey_confirm = auth_passkey_confirm,
+	.cancel = auth_cancel,
+};
+
+static struct bt_conn_auth_info_cb conn_auth_info_callbacks = {
+	.pairing_complete = pairing_complete,
+	.pairing_failed = pairing_failed
+};
+
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+	.security_changed = security_changed,
+};
+
 /*---------------------------------------- HIDS FUNCTIONS AND CALLBACKS --------------------------------------------------------------------------------*/
 
 static void hids_outp_rep_handler(struct bt_hids_rep *rep,
@@ -141,7 +141,6 @@ static void hids_boot_kb_outp_rep_handler(struct bt_hids_rep *rep,
 					  struct bt_conn *conn,
 					  bool write)
 {
-
 	printk("%d - hids_boot_kb_outp_rep_handler\n",global_conter++); // FRANCISCO
 
 	char addr[BT_ADDR_LE_STR_LEN];
@@ -607,43 +606,42 @@ void pairing_process(struct k_work *work)
 
 void connected(struct bt_conn *conn, uint8_t err)
 {
-
-	printk("%d - connected cb\n",global_conter++); // FRANCISCO
+	LOG_DBG("Connected CB\n");
 
 	char addr[BT_ADDR_LE_STR_LEN];
-
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 	if (err) {
-		printk("Failed to connect to %s (%u)\n", addr, err);
+		LOG_ERR("Failed to connect to %s (%u)\n", addr, err);
 		return;
 	}
 
-	printk("Connected %s\n", addr);
-	//dk_set_led_on(CON_STATUS_LED);
+	LOG_INF("Connected to %s\n",addr);
 
 	err = bt_hids_connected(&hids_obj, conn);
-
 	if (err) {
-		printk("Failed to notify HID service about connection\n");
+		LOG_ERR("Failed to notify HID service about connection\n");
 		return;
 	}
 	
-
+	//Verifica si existe espacio para la nueva coneccion
 	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (!conn_mode[i].conn) {
 			conn_mode[i].conn = conn;
 			conn_mode[i].in_boot_mode = false;
-			break;
+			if(i+1 < CONFIG_BT_HIDS_MAX_CLIENT_COUNT){
+				if (!conn_mode[i].conn) advertising_start();
+			}
+			return;
 		}
 	}
 
-	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
+	/*for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
 		if (!conn_mode[i].conn) {
 			advertising_start();
 			return;
 		}
-	}
+	}*/
 
 	is_adv = false;
 }
@@ -654,17 +652,16 @@ void disconnected(struct bt_conn *conn, uint8_t reason)
 	bool is_any_dev_connected = false;
 	char addr[BT_ADDR_LE_STR_LEN];
 
-	printk("%d - disconnected\n",global_conter++); // FRANCISCO
+	LOG_DBG("Disconnected CB\n");
+
 	state_conection = false;
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Disconnected from %s (reason %u)\n", addr, reason);
+	LOG_INF("Disconnected from %s (reason %u)\n", addr, reason);
 
 	err = bt_hids_disconnected(&hids_obj, conn);
-
 	if (err) {
-		printk("Failed to notify HID service about disconnection\n");
+		LOG_ERR("Failed to notify HID service about disconnection\n");
 	}
 
 	for (size_t i = 0; i < CONFIG_BT_HIDS_MAX_CLIENT_COUNT; i++) {
@@ -677,9 +674,7 @@ void disconnected(struct bt_conn *conn, uint8_t reason)
 		}
 	}
 
-	if (!is_any_dev_connected) {
-		//dk_set_led_off(CON_STATUS_LED);
-	}
+	if (!is_any_dev_connected) {}
 
 	advertising_start();
 	ble_machine_state = BLE_WAITING_CONECTION;
@@ -715,14 +710,14 @@ void ble_machine()
         {	
 			err = bt_conn_auth_cb_register(&conn_auth_callbacks);
 	        if (err) {
-		        printk("BLE Failed to register authorization callbacks.\n");
+		        LOG_ERR("BLE Failed to register authorization callbacks.\n");
 				app_notifi_error_b = true;
 		        break;
 	        }
 
             err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
 	        if (err) {
-		        printk("BLE Failed to register authorization info callbacks.\n");
+		        LOG_ERR("BLE Failed to register authorization info callbacks.\n");
 				app_notifi_error_b = true;
 		        break;
 	        }
