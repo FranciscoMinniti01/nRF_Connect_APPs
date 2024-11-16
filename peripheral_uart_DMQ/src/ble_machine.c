@@ -2,38 +2,42 @@
 
 #include "ble_machine.h"
 
-LOG_MODULE_REGISTER(LOG_BLE,LOG_BLE_LEVEL);			                // Registro del modulo logger y configuracion del nivel
+// VARIABLES ------------------------------------------------------------------------------------------------------------------------
 
-// GLOBAL VARIABLES ------------------------------------------------------------------------------------------------------------------------
+LOG_MODULE_REGISTER(LOG_BLE,LOG_BLE_LEVEL);			            // Registro del modulo logger y configuracion del nivel
 
 static uint8_t ble_machine_state    = BLE_CB_REGISTERS;	        // Estado de la maquina de estado BLE
+
 static bool app_notifi_error        = false;                    // Indicador de error en la maquina de estado
 static bool app_notifi_adv          = false;                    // Indicador de estado de advertising
-static bool app_notifi_is_conn      = false;                    // Indicador del estado de la coneccion
-
+static bool app_notifi_conn      = false;                    // Indicador del estado de la coneccion
 static bool is_update_param         = false;
 static bool is_update_PHY           = false;
+
 struct bt_conn *current_conn        = NULL;
 
 // ADVERTISING ------------------------------------------------------------------------------------------------------------------------
 
-static const struct bt_data ad[] = {                                        // Estructura del Advertising package con la informacion que contiene
-	BT_DATA_BYTES( BT_DATA_FLAGS, ADV_PAC_FLAGS),                           // Configuracion de las banderas del paquete
-	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, sizeof(DEVICE_NAME) - 1),   // Incluye en el paquete el nombre del dispositivo que vera el usuario
+static const struct bt_data ad[] = {                                            // Estructura del Advertising package con la informacion que contiene
+	BT_DATA_BYTES( BT_DATA_FLAGS, ADV_FLAGS),                                   // Configuracion de las banderas del paquete
+	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, sizeof(DEVICE_NAME) - 1),       // Incluye en el paquete el nombre del dispositivo que vera el usuario
 };
 
-static const struct bt_data sd[] = {                                        // Estructura del scan packet con la informacion que contiene
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_VAL),                    // Incluye el UUID del servicio NUS
+static const struct bt_data sd[] = {                                            // Estructura del scan packet con la informacion que contiene
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, ADV_UUID_SERVICE),                       // Incluye el UUID del servicio NUS
 };
 
 void advertising_start()
 {
     int err;
-	struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM( ADV_OPTIONS, ADV_MIN_INTERVAL,	ADV_MAX_INTERVAL, NULL);        // Estructura con los parametros de publicidad
+	struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM( ADV_OPTIONS,           // Configuracion de la publicidad
+                                                         ADV_MIN_INTERVAL,      // Configuracion del minimo intervalo de publicidad
+                                                         ADV_MAX_INTERVAL,      // Configuracion del maximo intervalo de publicidad
+                                                         ADV_ADDR_DIREC);       // Configuracion de la direcion BLE para publicidad dirigida
 
-	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));				                            // Inicia la publicidad
+	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));	// Inicio de la publicidad
 	if (err) {
-		if (err == -EALREADY) LOG_INF("Advertising continued\n");         // Esto nose si es necesario, lo dejo para ver cuando pasa, Tengo que probar con BT_LE_ADV_OPT_ONE_TIME en eñ adv_param. FRAN
+		if (err == -EALREADY) LOG_INF("Advertising continued\n");               // Esto nose si es necesario, lo dejo para ver cuando pasa, Tengo que probar con BT_LE_ADV_OPT_ONE_TIME en eñ adv_param. FRAN
 		else LOG_ERR("Advertising failed to start. Error: %d\n", err);
 		return;
 	}
@@ -51,6 +55,8 @@ void connected(struct bt_conn *conn, uint8_t err)
         return;
     }
 
+    if(BT_ID_DEFAULT){}
+
     char addr[BT_ADDR_LE_STR_LEN];
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 	LOG_INF("Connected %s", addr);
@@ -62,14 +68,14 @@ void connected(struct bt_conn *conn, uint8_t err)
     
     current_conn = bt_conn_ref(conn);
 
-    app_notifi_is_conn = true;
+    app_notifi_conn = true;
     ble_machine_state = BLE_UPDATE_CONN_PARAM;
 }
 
 void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     LOG_INF("Disconnected. Reason: %d\n", reason);
-    app_notifi_is_conn = false;
+    app_notifi_conn = false;
 
     if (current_conn) {
 		bt_conn_unref(current_conn);
@@ -115,36 +121,55 @@ struct bt_conn_cb connection_cb = {
     .security_changed       = security_changed
 };
 
-// SECURITY ------------------------------------------------------------------------------------------------------------------------
+// AUTHENTUCATION AND PAIRING ------------------------------------------------------------------------------------------------------------------------
 
 static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
-
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
 	LOG_INF("Passkey for %s: %06u\n", addr, passkey);
 }
 
 static void auth_cancel(struct bt_conn *conn)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
-
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
 	LOG_INF("Pairing cancelled: %s\n", addr);
 }
 
 static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.passkey_display = auth_passkey_display,
-	.cancel = auth_cancel,
+	.passkey_display    = auth_passkey_display,
+	.cancel             = auth_cancel,
 };
 
-// FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
+static void pairing_complete (struct bt_conn *conn, bool bonded)
+{
+    char addr[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("Pairing complete: %s\n", addr);
+    
+    /*int err = bt_unpair(BT_ID_DEFAULT,BT_ADDR_LE_ANY);
+	if (err) LOG_INF("Cannot delete bond (err: %d)\n", err);
+	else LOG_INF("Bond deleted succesfully \n");*/
+}
+
+static void pairing_failed (struct bt_conn *conn, enum bt_security_err reason)
+{
+    char addr[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("Pairing failed: %s , reason: %d\n", addr, reason);
+}
+
+static struct bt_conn_auth_info_cb conn_auth_info_callbacks = {
+    .pairing_complete   = pairing_complete,
+    .pairing_failed     = pairing_failed,
+};
+
+// FUNCTIONS GET ------------------------------------------------------------------------------------------------------------------------
 
 bool get_BLE_state_conn()
 {
-    return app_notifi_is_conn;
+    return app_notifi_conn;
 }
 
 bool get_BLE_state_adv()
@@ -172,7 +197,14 @@ void ble_machine()
                 return;
             }
 
+            err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
+            if (err) {
+                LOG_INF("Failed to register authorization info callbacks.\n");
+                return;
+            }
+
             bt_conn_cb_register(&connection_cb);
+
             ble_machine_state = BLE_INIT;
         }
 
@@ -188,7 +220,7 @@ void ble_machine()
             // Rever el funcionamiento de ese bloque FRAN
             bt_addr_le_t perypheral_addr;                                   // Variable para almacenar mi direccion BLE
             err = bt_addr_le_create_static(&perypheral_addr);               // Creacion de una BLE random static address
-            if(err){
+            if(err) {
                 LOG_ERR("BLE addr create failed, Error: %d\n", err);
                 app_notifi_error = true;
             } else {
@@ -198,14 +230,12 @@ void ble_machine()
                 }
             }
             char addr[BT_ADDR_LE_STR_LEN];
-            bt_addr_le_to_str(&perypheral_addr, addr, sizeof(addr));        // Combierto la direccion a string para imprimirla
+            bt_addr_le_to_str(&perypheral_addr, addr, sizeof(addr));
             LOG_INF("Perypheral addr: %s\n",addr);
 
-			/*if (IS_ENABLED(CONFIG_SETTINGS)) {
-		        settings_load();
-	        }*/
+            bt_passkey_set(PASSKEY);                                        // Configuro manualmente y de forma NO aleatoria la passkey
 
-            bt_passkey_set(PASSKEY);
+		    settings_load();                                                // Carga la configuracion de BLE almacenada en memoria flash
 
 			app_notifi_error = false;
             LOG_INF("BLE inicializado\n");

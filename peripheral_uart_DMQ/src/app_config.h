@@ -25,9 +25,11 @@
 #define ADV_OPTIONS         BT_LE_ADV_OPT_CONNECTABLE      // Configuramos la publicidad como conectable
 #define ADV_MIN_INTERVAL    BT_GAP_ADV_FAST_INT_MIN_2      // Configuramos el minimo intervalo de publicidad
 #define ADV_MAX_INTERVAL    BT_GAP_ADV_FAST_INT_MAX_2      // Configuramos el maximo intervalo de publicidad
+#define ADV_ADDR_DIREC      NULL                            // address of peer for directed advertising
 // ADVERTISING PACKET
-#define ADV_PAC_FLAGS       BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR      // Publicidad conectable disponible durante un período de tiempo prolongado y no compatible con bluetooth clasico
-#define DEVICE_NAME         CONFIG_BT_DEVICE_NAME   
+#define ADV_FLAGS           BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR      // Publicidad conectable disponible durante un período de tiempo prolongado y no compatible con bluetooth clasico
+#define DEVICE_NAME         CONFIG_BT_DEVICE_NAME  
+#define ADV_UUID_SERVICE    BT_UUID_NUS_VAL
 
 // CONNECTION
 #define CONN_MIN_INTERVAL   800

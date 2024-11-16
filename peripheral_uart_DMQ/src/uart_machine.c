@@ -7,7 +7,6 @@
 LOG_MODULE_REGISTER(LOG_UART, LOG_UART_LEVEL);
 
 static uint8_t uart_machine_state       = UART_INIT;
-static uint8_t uart_machine_state_CB    = NOT_USET;
 
 static bool app_notifi_error            = false;
 static bool app_notifi_ready            = false;
@@ -17,7 +16,7 @@ static uint16_t uart_data_index         = 0;
 static uint16_t app_data_index          = 0;
 static uint16_t serch_data_index        = 0;
 
-const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart1));                     // Devuelve un puntero a un objeto de dispositivo creado a partir de un nodo de DeviceTree
+const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart1));
 
 const struct uart_config uart_config = {.baudrate   = UART_BAUDRATE,
 		                                .parity     = UART_PARITY,
@@ -27,7 +26,7 @@ const struct uart_config uart_config = {.baudrate   = UART_BAUDRATE,
 
 uint8_t uart_rx_buffers[RECEIVE_BUFF_NUMBER][RECEIVE_BUFF_SIZE];
 
-// FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
+// FUNCTIONS GET ------------------------------------------------------------------------------------------------------------------------
 
 bool get_UART_notifi_error(void)
 {
@@ -57,7 +56,9 @@ uint8_t get_rdy_data()
     return 0;
 }
 
-void serch_code(Code_callback_t cb)
+// FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
+
+/*void serch_code(Code_callback_t cb)
 {
     uint8_t data;
     static uint8_t last_data;
@@ -95,7 +96,7 @@ void serch_code(Code_callback_t cb)
             len_code  = 0;
         }
     }
-}
+}*/
 
 // CALLBACK ------------------------------------------------------------------------------------------------------------------------
 
@@ -131,7 +132,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 		case UART_RX_DISABLED:
 		{
             LOG_DBG("UART_RX_DISABLED\n");
-            uart_machine_state_CB = WAIT_FOT_REINIT;
+            //uart_machine_state = WAIT_FOT_REINIT;   // FRAN usar esto aca traia problemas pero no me acuerdo por que
             app_notifi_error = true;
             break;
 		}
@@ -177,16 +178,12 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 	}
 }
 
-// MACHINE ------------------------------------------------------------------------------------------------------------------------
+// FUNCTIONS MACHINE ------------------------------------------------------------------------------------------------------------------------
 
 void uart_machine()
 {
     uint8_t err;
-    if(uart_machine_state_CB != NOT_USET)
-    {
-        uart_machine_state = uart_machine_state_CB;
-        uart_machine_state_CB = NOT_USET;
-    }
+
     switch (uart_machine_state)
     {
         case UART_INIT:

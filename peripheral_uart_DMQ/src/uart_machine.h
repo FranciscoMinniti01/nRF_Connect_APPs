@@ -11,6 +11,8 @@
 
 #define K_INTERVAL_TO_REINIT 50
 
+// VARIABLES ------------------------------------------------------------------------------------------------------------------------
+
 typedef void (*Code_callback_t) (uint16_t index , uint16_t* buf , uint8_t len);
 
 enum uart_machine

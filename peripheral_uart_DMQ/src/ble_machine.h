@@ -8,6 +8,7 @@
 #include <zephyr/bluetooth/uuid.h>              // Permite el manejo de las UUID de servicios
 #include <zephyr/bluetooth/addr.h>              // Permite administrar las direcciones BLE
 #include <zephyr/bluetooth/conn.h>              // Permite el manejo de la conexión BLE
+#include <zephyr/settings/settings.h>           // Permite almacenar y restaurar la configuración Y el estado de Bluetooth (Ej: claves de emparejamiento) de forma persistente en la memoria flash
 
 #include "dmq_nus_service.h"                    // Incluye las funciones y definiciones particulares del servicio NUS utilizando el codigo modificado
 #include "app_config.h"
@@ -47,5 +48,7 @@ bool get_BLE_state_adv();
 bool get_BEL_state_error();
 
 void ble_machine();
+
+// ------------------------------------------------------------------------------------------------------------------------
 
 #endif//BLE_MACHINE_H
