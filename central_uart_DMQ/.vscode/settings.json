@@ -1,5 +1,23 @@
 {
     "files.associations": {
-        "nus_client.h": "c"
+        "nus_client.h": "c",
+        "gatt_dm.h": "c",
+        "client_ble_machine.h": "c",
+        "app_config.h": "c",
+        "kernel.h": "c",
+        "bluetooth.h": "c",
+        "uuid.h": "c",
+        "scan.h": "c",
+        "gatt.h": "c",
+        "devicetree.h": "c",
+        "device.h": "c",
+        "nus.h": "c",
+        "nus_client_dmq.h": "c",
+        "compare": "c",
+        "settings.h": "c",
+        "byteorder.h": "c",
+        "printk.h": "c",
+        "hci.h": "c",
+        "gap.h": "c"
     }
 }
